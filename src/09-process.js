@@ -102,6 +102,7 @@
                 findLatestTeamMessage();
 
             if (!latestTeam) {
+                debugLog('Không tìm lại được bảng đội ngay trước khi Bắt Đầu.');
                 return;
             }
 
@@ -113,11 +114,14 @@
                 );
 
             if (result.action === 'stop') {
+                debugLog('STOP trước Bắt Đầu: ' + result.reason);
                 stopTool(result.reason);
                 return;
             }
 
             if (result.action === 'skip') {
+                debugLog('SKIP Bắt Đầu: ' + result.reason);
+
                 teamStatus.textContent =
                     '⏸ Chưa click Bắt Đầu: ' +
                     result.reason;
