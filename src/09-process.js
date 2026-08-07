@@ -88,7 +88,11 @@
          */
 
         if (
-            target.includes('bắt đầu')
+            /*
+             * target đã được bỏ dấu (normalizeText)
+             * nên so với chuỗi không dấu 'bat dau'.
+             */
+            target.includes('bat dau')
         ) {
             /*
              * Đọc lại bảng đội NGAY TRƯỚC khi kiểm tra.

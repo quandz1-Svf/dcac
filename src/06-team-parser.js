@@ -199,7 +199,7 @@
         const articles =
             Array.from(
                 document.querySelectorAll(
-                    '[role="article"]'
+                    'div[role="article"][data-list-item-id^="chat-messages"]'
                 )
             );
 

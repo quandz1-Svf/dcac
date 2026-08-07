@@ -70,7 +70,7 @@
         const articles =
             Array.from(
                 document.querySelectorAll(
-                    '[role="article"]'
+                    'div[role="article"][data-list-item-id^="chat-messages"]'
                 )
             );
 
@@ -135,9 +135,12 @@
          */
 
         if (
-            target
-                .toLowerCase()
-                .includes('bắt đầu')
+            /*
+             * target đã được bỏ dấu (normalizeText trong getTargets),
+             * nên so với chuỗi không dấu 'bat dau'.
+             */
+            normalizeText(target)
+                .includes('bat dau')
         ) {
             return findButtonInArticle(
                 freshTeam.element,
