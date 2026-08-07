@@ -852,23 +852,20 @@
                 articles[i];
 
             /*
-             * FIX: KHÔNG bắt buộc nút "Bắt Đầu"
-             * nằm chung article với bảng đội.
+             * FIX 2: KHÔNG bắt buộc chữ "Bắt Đầu" cụ thể,
+             * nhưng VẪN yêu cầu message phải có ít nhất
+             * 1 nút (bất kỳ) đi kèm bảng thành viên.
              *
-             * Nhiều bot Discord gửi bảng thành viên
-             * và nút hành động ở HAI message khác nhau
-             * (nút thường nằm ở message SAU).
-             *
-             * Trước đây hasStart bắt buộc khiến
-             * findLatestTeamMessage() luôn trả về null
-             * -> tool không bao giờ tìm thấy bảng đội
-             * -> KHÔNG BAO GIỜ CLICK.
-             *
-             * Việc tìm nút thật sự đã được xử lý
-             * (có fallback tìm ở các message sau)
-             * trong findTargetButton() / findFreshButton()
-             * ở 08-button-clicker.js, nên không cần
-             * điều kiện hasStart ở đây nữa.
+             * Lý do: một số bot còn gửi thêm các bảng
+             * dạng <ol> khác (bảng kết quả, log...) không
+             * đi kèm nút nào. Nếu không lọc điều kiện này,
+             * findLatestTeamMessage() có thể nhầm lấy
+             * bảng đó làm "bảng đội" khi nó là message
+             * mới nhất -> tên thành viên không khớp với
+             * các dòng đã hiển thị trong GUI -> kiểm tra
+             * trước Bắt Đầu luôn báo lỗi/skip -> không
+             * click được nữa dù trước đó vẫn click bình
+             * thường ở các bước menu chính.
              */
 
             const buttons =
@@ -877,6 +874,10 @@
                         'button,[role="button"]'
                     )
                 );
+
+            if (!buttons.length) {
+                continue;
+            }
 
             const memberData =
                 getMembersFromMessage(article);
@@ -1488,6 +1489,7 @@
                 findLatestTeamMessage();
 
             if (!latestTeam) {
+                debugLog('Không tìm lại được bảng đội ngay trước khi Bắt Đầu.');
                 return;
             }
 
@@ -1499,11 +1501,14 @@
                 );
 
             if (result.action === 'stop') {
+                debugLog('STOP trước Bắt Đầu: ' + result.reason);
                 stopTool(result.reason);
                 return;
             }
 
             if (result.action === 'skip') {
+                debugLog('SKIP Bắt Đầu: ' + result.reason);
+
                 teamStatus.textContent =
                     '⏸ Chưa click Bắt Đầu: ' +
                     result.reason;
