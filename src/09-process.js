@@ -49,25 +49,27 @@
             return;
         }
 
+        /*
+         * Đọc bảng đội theo kiểu BEST-EFFORT.
+         *
+         * KHÔNG return sớm nếu không tìm thấy — chỉ dùng
+         * để (1) cập nhật GUI hiển thị HP/Thể lực và
+         * (2) kiểm tra an toàn riêng cho nút "Bắt Đầu"
+         * bên dưới, NẾU đọc được. Việc click nút vẫn diễn
+         * ra bình thường theo từ khóa dù không đọc được
+         * bảng đội (ví dụ đang ở giao diện trận đấu/kết quả
+         * không có danh sách thành viên).
+         */
+
         const team =
             findLatestTeamMessage();
 
-        if (!team) {
-            debugLog('Không tìm thấy bảng đội (message chứa danh sách thành viên) trên màn hình.');
-            return;
+        if (team) {
+            refreshTeamInfo(team);
         }
 
-        /*
-         * Cập nhật bảng thông tin.
-         *
-         * Hàm này KHÔNG reset input.
-         */
-
-        refreshTeamInfo(team);
-
         const found =
-            findTargetButton(
-                team,
+            findAnyMatchingButton(
                 targets
             );
 
@@ -84,33 +86,20 @@
             found.target;
 
         /*
-         * Kiểm tra Bắt Đầu.
+         * Kiểm tra an toàn trước khi Bắt Đầu — CHỈ áp
+         * dụng khi đang đọc được bảng đội (có dữ liệu
+         * HP/Thể lực để kiểm tra). Nếu không đọc được,
+         * cứ click thẳng theo đúng yêu cầu: khớp từ khóa
+         * là click, bất kể giao diện nào.
          */
 
         if (
-            /*
-             * target đã được bỏ dấu (normalizeText)
-             * nên so với chuỗi không dấu 'bat dau'.
-             */
-            target.includes('bat dau')
+            target.includes('bat dau') &&
+            team
         ) {
-            /*
-             * Đọc lại bảng đội NGAY TRƯỚC khi kiểm tra.
-             */
-
-            const latestTeam =
-                findLatestTeamMessage();
-
-            if (!latestTeam) {
-                debugLog('Không tìm lại được bảng đội ngay trước khi Bắt Đầu.');
-                return;
-            }
-
-            refreshTeamInfo(latestTeam);
-
             const result =
                 checkMembersBeforeStart(
-                    latestTeam
+                    team
                 );
 
             if (result.action === 'stop') {
@@ -139,43 +128,13 @@
                 '#a6e3a1';
         }
 
-        /*
-         * QUAN TRỌNG:
-         * Không dùng targetButton cũ nữa.
-         *
-         * Tìm lại button hiện tại trong DOM.
-         */
-
-        const freshButton =
-            findFreshButton(
-                team,
-                target
+        const clicked =
+            forceClick(
+                found.button
             );
 
-        if (!freshButton) {
-            debugLog('Nút "' + target + '" đã biến mất khỏi DOM trước khi click lại.');
-            return;
-        }
-
-        /*
-         * Kiểm tra lại text.
-         */
-
-        if (
-            !isButtonMatch(
-                freshButton,
-                target
-            )
-        ) {
-            debugLog('Text nút đã đổi, không còn khớp "' + target + '".');
-            return;
-        }
-
-        const clicked =
-            forceClick(freshButton);
-
         if (!clicked) {
-            debugLog('forceClick() thất bại (nút không còn gắn vào DOM hoặc thuộc GUI của tool).');
+            debugLog('forceClick() thất bại cho nút "' + target + '".');
             return;
         }
 
