@@ -1117,74 +1117,25 @@
 
     // ===== 08-button-clicker.js =====
 /* =========================================================
-   FIND BUTTON
+   FIND BUTTON (KHÔNG PHỤ THUỘC BẢNG ĐỘI)
 ========================================================= */
-    function findButtonInArticle(article, target) {
-        if (!article) {
-            return null;
-        }
-
-        const buttons =
-            Array.from(
-                article.querySelectorAll(
-                    'button,[role="button"]'
-                )
-            );
-
-        /*
-         * Không lấy GUI của script.
-         */
-
-        return buttons.find(function (button) {
-            if (gui.contains(button)) {
-                return false;
-            }
-
-            return isButtonMatch(
-                button,
-                target
-            );
-        }) || null;
-    }
-
     /*
-     * Tìm nút thuộc bảng đội trước.
+     * Quét TẤT CẢ message (mới nhất -> cũ hơn).
      *
-     * Nếu không có, chỉ tìm ở các article
-     * xuất hiện SAU bảng đội.
+     * Message nào có nút khớp bất kỳ từ khóa nào
+     * trong danh sách -> click ngay, BẤT KỂ giao diện
+     * đó có phải "bảng đội" (<ol> danh sách thành viên)
+     * hay không.
      *
-     * Không quay ngược về các message cũ.
+     * Đây là điểm khác biệt quan trọng so với bản trước:
+     * trước đây TOÀN BỘ việc click phụ thuộc vào việc
+     * tìm thấy bảng đội trước (findLatestTeamMessage),
+     * nên hễ đổi sang giao diện khác (màn hình trận đấu,
+     * kết quả...) không có <ol> là tool bị đứng lại dù
+     * nút cần bấm vẫn hiển thị rành rành trên màn hình.
      */
 
-    function findTargetButton(team, targets) {
-        if (!team) {
-            return null;
-        }
-
-        /*
-         * 1. Ưu tiên chính bảng đội.
-         */
-
-        for (const target of targets) {
-            const button =
-                findButtonInArticle(
-                    team.element,
-                    target
-                );
-
-            if (button) {
-                return {
-                    button,
-                    target
-                };
-            }
-        }
-
-        /*
-         * 2. Fallback:
-         * tìm các message mới hơn bảng đội.
-         */
-
+    function findAnyMatchingButton(targets) {
         const articles =
             Array.from(
                 document.querySelectorAll(
@@ -1192,109 +1143,51 @@
                 )
             );
 
-        const index =
-            articles.indexOf(team.element);
-
-        if (index === -1) {
-            return null;
-        }
-
         for (
             let i = articles.length - 1;
-            i > index;
+            i >= 0;
             i--
         ) {
             const article =
                 articles[i];
 
+            if (gui.contains(article)) {
+                continue;
+            }
+
+            const buttons =
+                Array.from(
+                    article.querySelectorAll(
+                        'button,[role="button"]'
+                    )
+                ).filter(function (button) {
+                    return !gui.contains(button);
+                });
+
+            if (!buttons.length) {
+                continue;
+            }
+
             for (const target of targets) {
                 const button =
-                    findButtonInArticle(
-                        article,
-                        target
-                    );
+                    buttons.find(function (btn) {
+                        return isButtonMatch(
+                            btn,
+                            target
+                        );
+                    });
 
                 if (button) {
                     return {
                         button,
-                        target
+                        target,
+                        article
                     };
                 }
             }
         }
 
         return null;
-    }
-
-    
-
-/* =========================================================
-   RE-QUERY BUTTON BEFORE CLICK
-========================================================= */
-    function findFreshButton(team, target) {
-        if (!team) {
-            return null;
-        }
-
-        /*
-         * Tìm lại bảng đội mới nhất.
-         */
-
-        const freshTeam =
-            findLatestTeamMessage();
-
-        if (!freshTeam) {
-            return null;
-        }
-
-        /*
-         * Nếu target là Bắt Đầu,
-         * bắt buộc lấy từ bảng đội mới nhất.
-         */
-
-        if (
-            /*
-             * target đã được bỏ dấu (normalizeText trong getTargets),
-             * nên so với chuỗi không dấu 'bat dau'.
-             */
-            normalizeText(target)
-                .includes('bat dau')
-        ) {
-            return findButtonInArticle(
-                freshTeam.element,
-                target
-            );
-        }
-
-        /*
-         * Các nút khác:
-         * thử bảng đội trước.
-         */
-
-        const direct =
-            findButtonInArticle(
-                freshTeam.element,
-                target
-            );
-
-        if (direct) {
-            return direct;
-        }
-
-        /*
-         * Sau đó mới tìm các message
-         * xuất hiện sau bảng đội.
-         */
-
-        const result =
-            findTargetButton(
-                freshTeam,
-                [target]
-            );
-
-        return result
-            ? result.button
-            : null;
     }
 
     
@@ -1436,25 +1329,27 @@
             return;
         }
 
+        /*
+         * Đọc bảng đội theo kiểu BEST-EFFORT.
+         *
+         * KHÔNG return sớm nếu không tìm thấy — chỉ dùng
+         * để (1) cập nhật GUI hiển thị HP/Thể lực và
+         * (2) kiểm tra an toàn riêng cho nút "Bắt Đầu"
+         * bên dưới, NẾU đọc được. Việc click nút vẫn diễn
+         * ra bình thường theo từ khóa dù không đọc được
+         * bảng đội (ví dụ đang ở giao diện trận đấu/kết quả
+         * không có danh sách thành viên).
+         */
+
         const team =
             findLatestTeamMessage();
 
-        if (!team) {
-            debugLog('Không tìm thấy bảng đội (message chứa danh sách thành viên) trên màn hình.');
-            return;
+        if (team) {
+            refreshTeamInfo(team);
         }
 
-        /*
-         * Cập nhật bảng thông tin.
-         *
-         * Hàm này KHÔNG reset input.
-         */
-
-        refreshTeamInfo(team);
-
         const found =
-            findTargetButton(
-                team,
+            findAnyMatchingButton(
                 targets
             );
 
@@ -1471,33 +1366,20 @@
             found.target;
 
         /*
-         * Kiểm tra Bắt Đầu.
+         * Kiểm tra an toàn trước khi Bắt Đầu — CHỈ áp
+         * dụng khi đang đọc được bảng đội (có dữ liệu
+         * HP/Thể lực để kiểm tra). Nếu không đọc được,
+         * cứ click thẳng theo đúng yêu cầu: khớp từ khóa
+         * là click, bất kể giao diện nào.
          */
 
         if (
-            /*
-             * target đã được bỏ dấu (normalizeText)
-             * nên so với chuỗi không dấu 'bat dau'.
-             */
-            target.includes('bat dau')
+            target.includes('bat dau') &&
+            team
         ) {
-            /*
-             * Đọc lại bảng đội NGAY TRƯỚC khi kiểm tra.
-             */
-
-            const latestTeam =
-                findLatestTeamMessage();
-
-            if (!latestTeam) {
-                debugLog('Không tìm lại được bảng đội ngay trước khi Bắt Đầu.');
-                return;
-            }
-
-            refreshTeamInfo(latestTeam);
-
             const result =
                 checkMembersBeforeStart(
-                    latestTeam
+                    team
                 );
 
             if (result.action === 'stop') {
@@ -1526,43 +1408,13 @@
                 '#a6e3a1';
         }
 
-        /*
-         * QUAN TRỌNG:
-         * Không dùng targetButton cũ nữa.
-         *
-         * Tìm lại button hiện tại trong DOM.
-         */
-
-        const freshButton =
-            findFreshButton(
-                team,
-                target
+        const clicked =
+            forceClick(
+                found.button
             );
 
-        if (!freshButton) {
-            debugLog('Nút "' + target + '" đã biến mất khỏi DOM trước khi click lại.');
-            return;
-        }
-
-        /*
-         * Kiểm tra lại text.
-         */
-
-        if (
-            !isButtonMatch(
-                freshButton,
-                target
-            )
-        ) {
-            debugLog('Text nút đã đổi, không còn khớp "' + target + '".');
-            return;
-        }
-
-        const clicked =
-            forceClick(freshButton);
-
         if (!clicked) {
-            debugLog('forceClick() thất bại (nút không còn gắn vào DOM hoặc thuộc GUI của tool).');
+            debugLog('forceClick() thất bại cho nút "' + target + '".');
             return;
         }
 
@@ -1722,6 +1574,40 @@
             return result;
         };
 
+    window.discordAutoClickFindButton =
+        function () {
+            const targets =
+                getTargets();
+
+            const found =
+                findAnyMatchingButton(
+                    targets
+                );
+
+            if (!found) {
+                console.log(
+                    '[AutoBot] Không tìm thấy nút khớp từ khóa:',
+                    targets
+                );
+
+                return null;
+            }
+
+            console.log(
+                '[AutoBot] Tìm thấy nút "' +
+                found.target +
+                '" trong message:',
+                found.article
+            );
+
+            console.log(
+                '[AutoBot] Button:',
+                found.button
+            );
+
+            return found;
+        };
+
     console.log(
         '%c[AutoBot] Loaded FIX1',
         'color:#89b4fa;font-weight:bold'
@@ -1733,6 +1619,10 @@
 
     console.log(
         'discordAutoClickCheck() = kiểm tra điều kiện'
+    );
+
+    console.log(
+        'discordAutoClickFindButton() = tìm nút khớp từ khóa (không cần bảng đội)'
     );
 
 })();
